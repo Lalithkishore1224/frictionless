@@ -90,10 +90,18 @@ export async function consumeOAuthState(
  * URLs automatically instead of relying on a hardcoded NEXT_PUBLIC_APP_URL).
  */
 export function getOrigin(req: Request): string {
+  const configured = config.appUrl;
+  // Prefer the configured public URL when it's set to something real (not
+  // localhost). This avoids building OAuth redirect_uris from an internal
+  // host the request is seen on behind proxies (e.g. Render's PORT forwarding),
+  // which produces a redirect_uri that won't match the registered app.
+  if (configured && !/localhost|127\.0\.0\.1|:1\d{4}/.test(configured)) {
+    return configured.replace(/\/$/, "");
+  }
   try {
     return new URL(req.url).origin;
   } catch {
-    return config.appUrl;
+    return configured;
   }
 }
 
