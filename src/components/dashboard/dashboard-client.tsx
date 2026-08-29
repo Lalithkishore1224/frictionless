@@ -56,6 +56,22 @@ export function DashboardClient({
   const [disconnecting, setDisconnecting] = React.useState<LaunchEngine | null>(null);
   const [openingId, setOpeningId] = React.useState<string | null>(null);
 
+  const hasProvisioning = items.some((d) => d.status === "PROVISIONING");
+
+  async function refreshDeployments() {
+    const res = await fetch("/api/deployments");
+    if (res.ok) {
+      const data = await res.json();
+      setItems(data.deployments);
+    }
+  }
+
+  React.useEffect(() => {
+    if (!hasProvisioning) return;
+    const t = setInterval(refreshDeployments, 5000);
+    return () => clearInterval(t);
+  }, [hasProvisioning]);
+
   function repoFullNameFromUrl(repoUrl: string | null) {
     if (!repoUrl) return null;
     return repoUrl
@@ -64,6 +80,16 @@ export function DashboardClient({
       .replace(/\/+$/, "")
       .replace(/^https?:\/\//, "")
       .replace(/^github\.com\//, "");
+  }
+
+  // The "Open app" button is only actionable once the deployment is RUNNING
+  // with a real public URL. While still booting/exposing the app (PROVISIONING)
+  // it stays disabled so users don't hit a not-yet-ready (404) page.
+  function canOpen(d: DeploymentWithApp): boolean {
+    if (d.status !== "RUNNING") return false;
+    if (!d.instanceUrl || !/^https?:\/\//.test(d.instanceUrl)) return false;
+    if (isLiveUrlEngine(d.app.engineType)) return true;
+    return d.instanceUrl.includes("trycloudflare.com") || d.instanceUrl.includes("app.github.dev");
   }
 
   async function openApp(d: DeploymentWithApp) {
@@ -248,8 +274,8 @@ export function DashboardClient({
                           variant="ghost"
                           size="icon"
                           onClick={() => openApp(d)}
-                          disabled={openingId === d.id}
-                          title="Open app"
+                          disabled={!canOpen(d) || openingId === d.id}
+                          title={canOpen(d) ? "Open app" : "App is still preparing — the public URL isn't ready yet"}
                         >
                           {openingId === d.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />

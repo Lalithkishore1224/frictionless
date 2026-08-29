@@ -345,11 +345,28 @@ async function runCodespacesDeploy(
   // the (now public) forwarded URL.
   await setProgress(id, "tunnel");
   let url: string | null = null;
-  for (let i = 0; i < 20; i += 1) {
+  for (let i = 0; i < 10 && !url; i += 1) {
     url = (await resolvePublicTunnel(repo, codespace.name, targetPort, accessToken))?.url ?? null;
-    if (url) break;
-    await new Promise((r) => setTimeout(r, 4000));
+    if (!url) await new Promise((r) => setTimeout(r, 4000));
   }
   const appUrl = `https://${codespace.name}-${targetPort}.app.github.dev`;
-  await finishDeploy(id, url ?? appUrl, ready ? "RUNNING" : "PROVISIONING");
+  const finalUrl = url ?? appUrl;
+
+  // Don't mark the deploy RUNNING until the public URL actually responds — the
+  // dashboard only enables the "Open app" button for a ready, reachable URL.
+  let reachable = false;
+  for (let i = 0; i < 25 && !reachable; i += 1) {
+    try {
+      const probe = await fetch(finalUrl, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(12000)
+      });
+      reachable = probe.status >= 200 && probe.status < 400;
+    } catch {
+      reachable = false;
+    }
+    if (!reachable) await new Promise((r) => setTimeout(r, 4000));
+  }
+
+  await finishDeploy(id, finalUrl, reachable ? "RUNNING" : "PROVISIONING");
 }

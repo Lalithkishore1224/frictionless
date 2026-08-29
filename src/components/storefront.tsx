@@ -442,6 +442,8 @@ function SuccessDialog({
 
   const ready = status === "RUNNING";
   const failed = status === "ERROR";
+  const appUrl = liveUrl ?? instanceUrl;
+  const canOpenApp = ready && !!appUrl;
   const currentIdx = steps.findIndex((st) => st.key === progress);
 
   const resolveFreshUrl = async (): Promise<string | null> => {
@@ -555,10 +557,10 @@ function SuccessDialog({
                 >
                   {step.label}
                 </span>
-                {ready && done && (
+                {canOpenApp && done && (
                   <ExternalLink
                     className="ml-auto h-3.5 w-3.5 shrink-0 text-emerald-600"
-                    onClick={() => window.open(liveUrl ?? instanceUrl, "_blank", "noreferrer")}
+                    onClick={() => window.open(appUrl, "_blank", "noreferrer")}
                   />
                 )}
               </li>
@@ -570,7 +572,7 @@ function SuccessDialog({
         <Button variant="outline" asChild>
           <Link href="/dashboard">View dashboard</Link>
         </Button>
-        <Button onClick={openApp} disabled={opening}>
+        <Button onClick={openApp} disabled={!canOpenApp || opening}>
           {opening ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
