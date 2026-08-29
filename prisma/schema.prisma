@@ -1,0 +1,126 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum LaunchEngine {
+  OAUTH_CLOUD_FLY
+  GITHUB_CODESPACES
+  OAUTH_CLOUD_SHELL
+}
+
+enum DeploymentStatus {
+  PROVISIONING
+  RUNNING
+  STOPPED
+  ERROR
+}
+
+enum SubmissionStatus {
+  PENDING
+  CHECKING
+  VERIFIED
+  FAILED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum SubmissionEngine {
+  CODESPACES
+  CLOUD_SHELL
+}
+
+model User {
+  id            String           @id @default(uuid())
+  email         String           @unique
+  name          String?
+  avatarUrl     String?
+  createdAt     DateTime         @default(now())
+  tokens        UserCredential[]
+  deployments   Deployment[]
+  submissions   AppSubmission[]
+  developerApps AppProduct[]
+}
+
+model UserCredential {
+  id           String       @id @default(uuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider     LaunchEngine
+  accessToken  String
+  refreshToken String?
+  privateKey   String?
+  expiresAt    DateTime?
+  createdAt    DateTime     @default(now())
+
+  @@unique([userId, provider])
+}
+
+model AppProduct {
+  id            String           @id @default(uuid())
+  title         String
+  slug          String           @unique
+  description   String
+  iconUrl       String?
+  dockerImage   String?
+  gitHubRepoUrl String?
+  engineType    LaunchEngine
+  targetPort    Int              @default(8080)
+  developerId   String?
+  developer     User?            @relation(fields: [developerId], references: [id], onDelete: SetNull)
+  launchCount   Int              @default(0)
+  createdAt     DateTime         @default(now())
+  deployments   Deployment[]
+  submission    AppSubmission?
+}
+
+model AppSubmission {
+  id            String           @id @default(uuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repoUrl       String
+  repoFullName  String
+  engine        SubmissionEngine
+  status        SubmissionStatus @default(PENDING)
+  title         String?
+  description   String?
+  category      String?
+  detectedPort  Int?
+  startCommand  String?
+  staticReport  Json?
+  runReport     Json?
+  adminNotes    String?
+  appProductId  String?          @unique
+  appProduct    AppProduct?      @relation(fields: [appProductId], references: [id], onDelete: SetNull)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model AiConfig {
+  id        String   @id @default(uuid())
+  provider  String
+  apiKey    String
+  model     String
+  baseUrl   String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Deployment {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appId       String
+  app         AppProduct       @relation(fields: [appId], references: [id], onDelete: Cascade)
+  instanceUrl String
+  status      DeploymentStatus @default(PROVISIONING)
+  progress    String           @default("starting")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
