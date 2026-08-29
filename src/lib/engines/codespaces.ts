@@ -684,3 +684,39 @@ export async function ensureVerificationDevcontainer(
     return { ref: "main", injected: false };
   }
 }
+
+/**
+ * Commits the auto-start devcontainer into the repo's `main` branch using the
+ * calling (developer-owned) token. Once present in `main`, ANY user can launch
+ * the app from their own Codespaces account without needing write access —
+ * `hasAutoStartDevcontainer` will see it and skip injection. No-op when the
+ * repo already ships an auto-start devcontainer or when a write fails.
+ *
+ * Returns true when `main` is confirmed auto-startable afterwards.
+ */
+export async function promoteAutoStartToMain(
+  token: string,
+  repoFullName: string,
+  port: number,
+  startCommandHint?: string | null
+): Promise<boolean> {
+  if (await hasAutoStartDevcontainer(token, repoFullName)) {
+    return true;
+  }
+  try {
+    const defaultRes = await fetch(
+      `https://api.github.com/repos/${repoFullName}`,
+      { headers: ghHeaders(token), signal: AbortSignal.timeout(15000) }
+    );
+    if (!defaultRes.ok) return false;
+    const repo = (await defaultRes.json()) as { default_branch?: string };
+    const main = repo.default_branch ?? "main";
+
+    await writeRepoFile(token, repoFullName, main, ".devcontainer/devcontainer.json", buildDevcontainerJson(port));
+    await writeRepoFile(token, repoFullName, main, ".devcontainer/servelless-start.sh", buildStartScript(port, startCommandHint));
+
+    return true;
+  } catch {
+    return false;
+  }
+}

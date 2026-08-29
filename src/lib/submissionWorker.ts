@@ -9,6 +9,7 @@ import {
   normalizeRepoUrl,
   runVerification
 } from "@/lib/verification";
+import { promoteAutoStartToMain } from "@/lib/engines/codespaces";
 
 const ENGINE_CREDENTIAL: Record<string, "GITHUB_CODESPACES" | "OAUTH_CLOUD_SHELL"> = {
   CODESPACES: "GITHUB_CODESPACES",
@@ -89,6 +90,19 @@ export async function processSubmission(submissionId: string): Promise<void> {
         startCommand: run.startCommand ?? staticReport.startCommand,
         runReport: { ...run, message: run.message }
       });
+      // Permanently commit the auto-start devcontainer into the submitting
+      // developer's repo (main) so ANY user can later launch it from their own
+      // Codespaces account without needing write access to the repo.
+      if (ghCredential?.accessToken) {
+        await promoteAutoStartToMain(
+          ghCredential.accessToken,
+          submission.repoFullName,
+          run.port ?? staticReport.port ?? 3000,
+          aiEval?.startCommand ?? staticReport.startCommand
+        ).catch((err) =>
+          console.error("promoteAutoStartToMain failed:", err)
+        );
+      }
     } else {
       await markSubmissionStatus(submission.id, "FAILED", {
         runReport: run
