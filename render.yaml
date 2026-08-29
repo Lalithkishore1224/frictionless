@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: servelless
+    runtime: node
+    repo: https://github.com/Lalithkishore1224/frictionless
+    plan: starter
+    healthCheckPath: /
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma generate && npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_ENGINE_CLIENT_ID
+        sync: false
+      - key: GITHUB_ENGINE_CLIENT_SECRET
+        sync: false
+      - key: DEV_LOGIN
+        value: "false"
+      - key: NEXT_PUBLIC_DEV_LOGIN
+        value: "false"
