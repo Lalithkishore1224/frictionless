@@ -21,6 +21,7 @@ import {
   deleteCodespace,
   ensureVerificationDevcontainer,
   startCodespace,
+  setPortVisibility,
   resolvePublicTunnel
 } from "@/lib/engines/codespaces";
 import {
@@ -320,15 +321,35 @@ async function runCodespacesDeploy(
   }
 
   await setProgress(id, "booting");
-  const { url, ready } = await waitForPublicUrl(
-    () =>
-      resolvePublicTunnel(repo, codespace.name, targetPort, accessToken).then(
-        (t) => t?.url ?? null
-      ),
-    60
-  );
-  await setProgress(id, "tunnel");
 
+  // Wait for the codespace to reach a ready state (up to ~4 min).
+  let ready = codespace.state === "Running" || codespace.state === "Available";
+  for (let i = 0; i < 48 && !ready; i += 1) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const cur = await findCodespace(accessToken, repo);
+    if (cur && (cur.state === "Running" || cur.state === "Available")) {
+      ready = true;
+      break;
+    }
+  }
+
+  // Make the forwarded app port public. This works for ANY launcher (they own
+  // their own codespace) and makes the `app.github.dev` URL reachable without
+  // GitHub auth — previously it 404'd for anyone who couldn't publish a repo
+  // tunnel (i.e. anyone launching an app they don't own).
+  await setPortVisibility(accessToken, codespace.name, targetPort, "public");
+
+  // A repo-owner can publish a Cloudflare tunnel URL, but a non-owner launcher
+  // cannot write it back to the repo — so the public app.github.dev URL is the
+  // reliable shareable address here. Prefer a tunnel when available, else use
+  // the (now public) forwarded URL.
+  await setProgress(id, "tunnel");
+  let url: string | null = null;
+  for (let i = 0; i < 20; i += 1) {
+    url = (await resolvePublicTunnel(repo, codespace.name, targetPort, accessToken))?.url ?? null;
+    if (url) break;
+    await new Promise((r) => setTimeout(r, 4000));
+  }
   const appUrl = `https://${codespace.name}-${targetPort}.app.github.dev`;
   await finishDeploy(id, url ?? appUrl, ready ? "RUNNING" : "PROVISIONING");
 }
