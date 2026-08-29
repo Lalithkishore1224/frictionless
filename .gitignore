@@ -15,6 +15,14 @@ next-env.d.ts
 .DS_Store
 *.pem
 *.log
+.directory
+
+# Build artifacts / scratch
+tsconfig.tsbuildinfo
+smoke.tmp.ts
+
+# Vercel local link config
+/.vercel/
 
 # Env files
 .env

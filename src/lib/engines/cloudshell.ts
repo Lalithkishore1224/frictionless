@@ -1,4 +1,3 @@
-import { Client, utils as sshUtils } from "ssh2";
 import { getCredential, saveCredential } from "@/lib/credentials";
 import type { DecryptedCredential } from "@/lib/credentials";
 import { config } from "@/lib/config";
@@ -205,6 +204,8 @@ export function generateSshKeyPair(): {
   publicKey: string;
 } {
   // Cloud Shell's addPublicKey only supports ssh-rsa / ssh-dss / ecdsa keys.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { utils: sshUtils } = require("ssh2");
   const pair = sshUtils.generateKeyPairSync("rsa", { bits: 2048 });
   const privateKey = pair.private.toString();
   const publicKey = publicKeyFromPrivate(privateKey);
@@ -212,6 +213,8 @@ export function generateSshKeyPair(): {
 }
 
 export function publicKeyFromPrivate(privateKey: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { utils: sshUtils } = require("ssh2");
   const parsed = sshUtils.parseKey(privateKey);
   if (parsed instanceof Error) throw parsed;
   return `${parsed.type} ${parsed.getPublicSSH().toString("base64")}`;
@@ -262,6 +265,8 @@ export async function runRemoteCommand(
 ): Promise<{ stdout: string; code: number }> {
   const { stdin, timeoutMs = 120000 } = options;
   return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Client } = require("ssh2");
     const conn = new Client();
     let out = "";
     let err = "";
@@ -272,7 +277,7 @@ export async function runRemoteCommand(
 
     conn
       .on("ready", () => {
-        conn.exec(command, (execErr, stream) => {
+        conn.exec(command, (execErr: Error | undefined, stream: any) => {
           if (execErr) {
             clearTimeout(timer);
             conn.end();
@@ -292,7 +297,7 @@ export async function runRemoteCommand(
           }
         });
       })
-      .on("error", (e) => {
+      .on("error", (e: Error) => {
         clearTimeout(timer);
         reject(e);
       })
