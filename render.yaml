@@ -40,3 +40,13 @@ services:
         value: "false"
       - key: NEXT_PUBLIC_DEV_LOGIN
         value: "false"
+      - key: WORKER_TOKEN
+        sync: false
+  - type: cron
+    name: servelless-verify
+    runtime: node
+    repo: https://github.com/Lalithkishore1224/frictionless
+    plan: starter
+    schedule: "*/1 * * * *"
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: curl -fsS -X POST ${RENDER_EXTERNAL_URL:-https://frictionless-5xxi.onrender.com}/api/worker/verify -H "Authorization: Bearer ${WORKER_TOKEN}"
