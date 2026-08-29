@@ -28,6 +28,10 @@ const STATUS_BADGE: Record<string, "default" | "secondary" | "outline" | "destru
 };
 
 const ACTIVE_STATUSES = ["PENDING", "CHECKING"];
+// If a submission has been stuck in an active state for longer than this,
+// treat it as resolved (the background verification job may have been killed)
+// so the submit button never stays disabled indefinitely.
+const STALE_MS = 10 * 60 * 1000;
 
 export function DevelopersClient({
   initialSubmissions,
@@ -54,7 +58,10 @@ export function DevelopersClient({
   ];
 
   const totalLaunches = apps.reduce((s, a) => s + a.launchCount, 0);
-  const checking = submissions.some((s) => ACTIVE_STATUSES.includes(s.status));
+  const now = Date.now();
+  const checking = submissions.some(
+    (s) => ACTIVE_STATUSES.includes(s.status) && now - new Date(s.updatedAt).getTime() < STALE_MS
+  );
 
   const [codespaces, setCodespaces] = React.useState<Array<{
     name: string;
