@@ -4,6 +4,7 @@ import {
   ENGINE_PROVIDERS,
   startOAuth,
   hasConfiguredCredentials,
+  getOrigin,
   type OAuthProvider
 } from "@/lib/engines/oauth";
 import { apiError } from "@/lib/api";
@@ -19,7 +20,7 @@ export async function GET(
   if (!conf) return apiError(400, `Unknown engine "${engine}"`);
 
   if (!hasConfiguredCredentials(conf)) {
-    const url = new URL("/", req.url);
+    const url = new URL("/", getOrigin(req));
     url.searchParams.set("error", "engine_not_configured");
     url.searchParams.set("engine", engine);
     return NextResponse.redirect(url);

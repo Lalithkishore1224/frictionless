@@ -29,10 +29,11 @@ export async function GET(
   if (!conf || !engineEnum) return apiError(400, `Unknown engine "${engine}"`);
 
   const url = new URL(req.url);
+  const base = getOrigin(req);
 
   // The provider bailed (user denied consent, or an upstream error).
   if (url.searchParams.get("error")) {
-    const target = new URL("/", req.url);
+    const target = new URL("/", base);
     target.searchParams.set("error", "oauth_failed");
     target.searchParams.set("engine", engine);
     return NextResponse.redirect(target);
@@ -70,7 +71,7 @@ export async function GET(
           : null
     });
   } catch (err) {
-    const target = new URL("/", req.url);
+    const target = new URL("/", base);
     target.searchParams.set("error", "oauth_failed");
     target.searchParams.set("engine", engine);
     if (err instanceof Error) {
@@ -83,7 +84,7 @@ export async function GET(
   const pendingLaunch = store.get("pending_launch")?.value;
   store.delete("pending_launch");
 
-  const target = new URL("/", req.url);
+  const target = new URL("/", base);
   target.searchParams.set("engine", "connected");
   if (pendingLaunch) target.searchParams.set("launch", pendingLaunch);
   return NextResponse.redirect(target);

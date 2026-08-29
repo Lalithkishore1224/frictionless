@@ -78,10 +78,11 @@ export async function GET(
   if (!conf) return apiError(400, `Unknown login provider "${provider}"`);
 
   const url = new URL(req.url);
+  const base = getOrigin(req);
 
   // The provider bailed (user denied consent, or an upstream error).
   if (url.searchParams.get("error")) {
-    return NextResponse.redirect(new URL("/login?error=oauth", req.url));
+    return NextResponse.redirect(new URL("/login?error=oauth", base));
   }
 
   const state = url.searchParams.get("state");
@@ -99,8 +100,7 @@ export async function GET(
       code,
       `/api/auth/callback/${provider}`,
       origin
-    );
-    const profile = await profileFetchers[provider](tokens.access_token);
+    );    const profile = await profileFetchers[provider](tokens.access_token);
     const user = await createSessionCookie(profile.email);
     if (profile.name || profile.avatarUrl) {
       await prisma.user.update({
@@ -114,11 +114,11 @@ export async function GET(
   } catch (err) {
     if (err instanceof Error) {
       return NextResponse.redirect(
-        new URL(`/login?error=oauth:${encodeURIComponent(err.message)}`, req.url)
+        new URL(`/login?error=oauth:${encodeURIComponent(err.message)}`, base)
       );
     }
-    return NextResponse.redirect(new URL("/login?error=oauth", req.url));
+    return NextResponse.redirect(new URL("/login?error=oauth", base));
   }
 
-  return NextResponse.redirect(new URL("/?login=success", req.url));
+  return NextResponse.redirect(new URL("/?login=success", base));
 }

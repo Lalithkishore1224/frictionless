@@ -27,6 +27,8 @@ smoke.tmp.ts
 # Env files
 .env
 .env*.local
+.env.render
+.env.production
 
 # Prisma
 prisma/dev.db
